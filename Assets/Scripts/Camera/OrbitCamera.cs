@@ -1,7 +1,5 @@
-using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.Windows;
 
 namespace PointCloudViewer.Camera
 {
