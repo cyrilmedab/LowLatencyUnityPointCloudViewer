@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace PointCloudViewer.Core
 {
-    public class PointCloudData : MonoBehaviour
+    public class PointCloudData
     {
         #region Read-Only Backing Fields
 
