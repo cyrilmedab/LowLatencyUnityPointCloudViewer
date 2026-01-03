@@ -1,6 +1,8 @@
 using PointCloudViewer.Core;
 using System.IO;
 using UnityEngine;
+using System;
+
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -8,6 +10,10 @@ using UnityEditor;
 
 namespace PointCloudViewer.DataLoading
 {
+    /// <summary>
+    /// Editor tool for generating synthetic point cloud data.
+    /// Creates sphere-shaped point clouds at various densities.
+    /// </summary>
     public static class DataGenerator
     {
         private const string DefaultOutputPath = "Assets/Data/SamplePointClouds";
@@ -78,6 +84,8 @@ namespace PointCloudViewer.DataLoading
 
                 // Color by depth/distance from center
                 float normalizedDist = (r - radius * (1f - noiseAmount)) / (radius * noiseAmount * 2f);
+                normalizedDist = Mathf.Clamp01(normalizedDist); // Ensure [0,1] range for safe byte conversion
+
                 Color32 color = new Color32(
                     (byte)(normalizedDist * 255),
                     (byte)((1f - Mathf.Abs(normalizedDist - 0.5f) * 2f) * 255),
@@ -118,7 +126,59 @@ namespace PointCloudViewer.DataLoading
                 }
             }
 
-            Debug.Log($"Saved {points.Length:N0} points to {filePath} ({new FileInfo(filePath).Length / 1024f:F1} KB)");
+            long fileSize = new FileInfo(filePath).Length;
+            string sizeStr = fileSize >= 1024 * 1024
+                ? $"{fileSize / (1024f * 1024f):F2} MB"
+                : $"{fileSize / 1024f:F1} KB";
+
+            Debug.Log($"Saved {points.Length:N0} points to {filePath} ({sizeStr})");
+        }
+
+        /// <summary>
+        /// [Unused] Fast save using unsafe memory copy for better performance.
+        /// Included for theoretical testing at some point, but not needed for this profiling
+        /// Format: [uint32 count][PointStruct * count]
+        /// </summary>
+        /// <param name="points">Points to save.</param>
+        /// <param name="filePath">Destination file path. Directory will be created if needed.</param>
+        public static unsafe void SaveToBinaryFast(PointStruct[] points, string filePath)
+        {
+            string directory = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            // Calculate total file size: 4 bytes (count) + point data
+            long dataSize = (long)points.Length * PointStruct.STRIDE;
+            long totalSize = 4 + dataSize;
+
+            byte[] fileBytes = new byte[totalSize];
+
+            fixed (byte* pBytes = fileBytes)
+            {
+                // Write point count header
+                *(uint*)pBytes = (uint)points.Length;
+
+                // Write point data using block copy
+                fixed (PointStruct* pPoints = points)
+                {
+                    byte* src = (byte*)pPoints;
+                    byte* dst = pBytes + 4; // Skip count header
+
+                    Buffer.MemoryCopy(src, dst, dataSize, dataSize);
+                }
+            }
+
+            // Write to file
+            File.WriteAllBytes(filePath, fileBytes);
+
+            long fileSize = new FileInfo(filePath).Length;
+            string sizeStr = fileSize >= 1024 * 1024
+                ? $"{fileSize / (1024f * 1024f):F2} MB"
+                : $"{fileSize / 1024f:F1} KB";
+
+            Debug.Log($"Fast saved {points.Length:N0} points to {filePath} ({sizeStr})");
         }
 
         /// <summary>
