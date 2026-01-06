@@ -9,16 +9,16 @@
 | Component              | Status                                                  |
 | ---------------------- | ------------------------------------------------------- |
 | Architecture & Design  | Complete                                                |
-| Core Data Structures   | Complete                                                |
+| Core Data Structures   | **In Progress**                                         |
 | Test Data Generation   | Complete (100K, 500K, 1M point datasets)                |
 | Rendering Scripts      | Written                                                 |
 | CPU Optimizations      | Written                                                 |
 | GPU Compute Shaders    | Written                                                 |
-| **Shader Compilation** | **In Progress** - HLSL include/struct resolution issues |
-| Performance Profiling  | Blocked by shader issues                                |
+| **Shader Compilation** | Complete                                                |
+| Performance Profiling  | Waiting on PointCloudManager                            |
 | Demo Video             | Pending                                                 |
 
-**Current Blocker:** Shaders are not properly recognizing shared struct definitions from separate HLSL include files. Once resolved, profiling and performance validation can proceed.
+**Current Blocker:** Writing the PointCloudManager script to tie the different optimizations and I/O together
 
 ---
 
