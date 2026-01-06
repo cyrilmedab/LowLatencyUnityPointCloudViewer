@@ -35,7 +35,15 @@ Shader "Custom/PointCloud"
             #pragma target 4.0
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-            #include "PointCloudCommon.hlsl"
+
+            // Point data structure - must match C# PointStruct layout
+            struct PointData
+            {
+                float x;
+                float y;
+                float z;
+                uint rgba;
+            };
 
             StructuredBuffer<PointData> _PointBuffer;
 
@@ -68,6 +76,17 @@ Shader "Custom/PointCloud"
                 float4 color : COLOR;
                 float2 uv : TEXCOORD0;
             };
+
+            // Unpack RGBA from uint (R in low byte)
+            float4 UnpackColor(uint packed)
+            {
+                float4 c;
+                c.r = (packed & 0xFF) / 255.0;
+                c.g = ((packed >> 8) & 0xFF) / 255.0;
+                c.b = ((packed >> 16) & 0xFF) / 255.0;
+                c.a = ((packed >> 24) & 0xFF) / 255.0;
+                return c;
+            }
 
             VertexOutput vert(VertexInput input)
             {
@@ -197,7 +216,14 @@ Shader "Custom/PointCloud"
             #pragma target 3.5
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-            #include "PointCloudCommon.hlsl"
+
+            struct PointData
+            {
+                float x;
+                float y;
+                float z;
+                uint rgba;
+            };
 
             StructuredBuffer<PointData> _PointBuffer;
             StructuredBuffer<uint> _IndexBuffer;
@@ -214,6 +240,16 @@ Shader "Custom/PointCloud"
                 float4 color : COLOR;
                 float pointSize : PSIZE;
             };
+
+            float4 UnpackColorSimple(uint packed)
+            {
+                float4 c;
+                c.r = (packed & 0xFF) / 255.0;
+                c.g = ((packed >> 8) & 0xFF) / 255.0;
+                c.b = ((packed >> 16) & 0xFF) / 255.0;
+                c.a = ((packed >> 24) & 0xFF) / 255.0;
+                return c;
+            }
 
             VertexOutputSimple vertSimple(uint vertexID : SV_VertexID)
             {
@@ -234,7 +270,7 @@ Shader "Custom/PointCloud"
                 float3 positionWS = mul(_LocalToWorld, float4(positionOS, 1.0)).xyz;
 
                 output.positionCS = TransformWorldToHClip(positionWS);
-                output.color = UnpackColor(point.rgba);
+                output.color = UnpackColorSimple(point.rgba);
 
                 float dist = length(_WorldSpaceCameraPos - positionWS);
                 float screenSize = _PointSize / max(dist, 0.001) * _ScreenParams.y;

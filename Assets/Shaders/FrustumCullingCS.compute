@@ -3,12 +3,18 @@
 
 #pragma kernel FrustumCull
 
-// Include shared point cloud definitions
-#include "PointCloudCommon.hlsl"
+// Point data structure - must match C# PointStruct layout
+struct PointData
+{
+    float x;
+    float y;
+    float z;
+    uint rgba;
+};
 
 // Input buffers
 StructuredBuffer<PointData> _PointBuffer;
-StructuredBuffer<float4> _FrustumPlanes; // 6 planes: normal.xyz + distance.w
+StructuredBuffer<float4> _FrustumPlanes;  // 6 planes: normal.xyz + distance.w
 
 // Output buffer
 AppendStructuredBuffer<uint> _VisibleIndices;
@@ -29,11 +35,11 @@ bool IsPointInFrustum(float3 positionWS)
 
         if (dist < 0)
         {
-            return false; // Point is outside this plane
+            return false;  // Point is outside this plane
         }
     }
 
-    return true; // Point is inside all planes
+    return true;  // Point is inside all planes
 }
 
 [numthreads(64, 1, 1)]
