@@ -52,8 +52,8 @@ void FrustumCull(uint3 id : SV_DispatchThreadID)
         return;
 
     // Read point data
-    PointData point = _PointBuffer[pointIndex];
-    float3 positionOS = float3(point.x, point.y, point.z);
+    PointData ptData = _PointBuffer[pointIndex];
+    float3 positionOS = float3(ptData.x, ptData.y, ptData.z);
 
     // Transform to world space
     float3 positionWS = mul(_LocalToWorld, float4(positionOS, 1.0)).xyz;

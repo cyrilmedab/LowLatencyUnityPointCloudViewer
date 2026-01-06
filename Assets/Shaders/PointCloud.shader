@@ -110,8 +110,8 @@ Shader "Custom/PointCloud"
                 }
 
                 // Read point data
-                PointData point = _PointBuffer[pointIndex];
-                float3 positionOS = float3(point.x, point.y, point.z);
+                PointData ptData = _PointBuffer[pointIndex];
+                float3 positionOS = float3(ptData.x, ptData.y, ptData.z);
 
                 // Transform to world space
                 float3 positionWS = mul(_LocalToWorld, float4(positionOS, 1.0)).xyz;
@@ -121,7 +121,7 @@ Shader "Custom/PointCloud"
                 output.positionCS = TransformWorldToHClip(positionWS);
 
                 // Unpack color
-                output.color = UnpackColor(point.rgba);
+                output.color = UnpackColor(ptData.rgba);
 
                 // Calculate point size based on distance
                 float dist = length(_WorldSpaceCameraPos - positionWS);
@@ -265,12 +265,12 @@ Shader "Custom/PointCloud"
                     return output;
                 }
 
-                PointData point = _PointBuffer[pointIndex];
-                float3 positionOS = float3(point.x, point.y, point.z);
+                PointData ptData = _PointBuffer[pointIndex];
+                float3 positionOS = float3(ptData.x, ptData.y, ptData.z);
                 float3 positionWS = mul(_LocalToWorld, float4(positionOS, 1.0)).xyz;
 
                 output.positionCS = TransformWorldToHClip(positionWS);
-                output.color = UnpackColorSimple(point.rgba);
+                output.color = UnpackColorSimple(ptData.rgba);
 
                 float dist = length(_WorldSpaceCameraPos - positionWS);
                 float screenSize = _PointSize / max(dist, 0.001) * _ScreenParams.y;
