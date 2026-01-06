@@ -1,0 +1,61 @@
+// Frustum Culling Compute Shader for Point Clouds
+// Tests each point against camera frustum planes and outputs visible indices
+
+#pragma kernel FrustumCull
+
+// Include shared point cloud definitions
+#include "PointCloudCommon.hlsl"
+
+// Input buffers
+StructuredBuffer<PointData> _PointBuffer;
+StructuredBuffer<float4> _FrustumPlanes; // 6 planes: normal.xyz + distance.w
+
+// Output buffer
+AppendStructuredBuffer<uint> _VisibleIndices;
+
+// Parameters
+uint _PointCount;
+float4x4 _LocalToWorld;
+
+// Test if a point is inside the frustum (all 6 planes)
+bool IsPointInFrustum(float3 positionWS)
+{
+    // Test against all 6 frustum planes
+    // A point is inside if it's on the positive side of all planes
+    for (int i = 0; i < 6; i++)
+    {
+        float4 plane = _FrustumPlanes[i];
+        float dist = dot(plane.xyz, positionWS) + plane.w;
+
+        if (dist < 0)
+        {
+            return false; // Point is outside this plane
+        }
+    }
+
+    return true; // Point is inside all planes
+}
+
+[numthreads(64, 1, 1)]
+void FrustumCull(uint3 id : SV_DispatchThreadID)
+{
+    uint pointIndex = id.x;
+
+    // Bounds check
+    if (pointIndex >= _PointCount)
+        return;
+
+    // Read point data
+    PointData point = _PointBuffer[pointIndex];
+    float3 positionOS = float3(point.x, point.y, point.z);
+
+    // Transform to world space
+    float3 positionWS = mul(_LocalToWorld, float4(positionOS, 1.0)).xyz;
+
+    // Test against frustum
+    if (IsPointInFrustum(positionWS))
+    {
+        // Point is visible - append to output buffer
+        _VisibleIndices.Append(pointIndex);
+    }
+}

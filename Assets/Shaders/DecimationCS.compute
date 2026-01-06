@@ -1,0 +1,116 @@
+// Decimation Compute Shader for Point Clouds
+// Reduces point density using various sampling strategies
+
+#pragma kernel DecimateStride
+#pragma kernel DecimateRatio
+#pragma kernel DecimateRandom
+
+// Input buffer (indices from previous stage or full point range)
+StructuredBuffer<uint> _InputIndices;
+
+// Output buffer (decimated indices)
+AppendStructuredBuffer<uint> _OutputIndices;
+
+// Parameters
+uint _InputCount; // Number of input indices
+uint _Stride; // For stride mode: keep every Nth point
+float _Ratio; // For ratio mode: percentage to keep (0.0-1.0)
+uint _RandomSeed; // For random mode: seed for RNG
+
+// Simple hash function for pseudo-random number generation
+uint Hash(uint x)
+{
+    x ^= x >> 16;
+    x *= 0x7feb352dU;
+    x ^= x >> 15;
+    x *= 0x846ca68bU;
+    x ^= x >> 16;
+    return x;
+}
+
+// Generate pseudo-random float in [0, 1) based on index and seed
+float Random(uint index, uint seed)
+{
+    uint h = Hash(index + seed);
+    return (float) h / 4294967296.0; // 2^32
+}
+
+// ========================================
+// Stride Decimation Kernel
+// Keeps every Nth point (simple, deterministic)
+// ========================================
+[numthreads(64, 1, 1)]
+void DecimateStride(uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.x;
+
+    // Bounds check
+    if (index >= _InputCount)
+        return;
+
+    // Keep every Nth point
+    if (index % _Stride == 0)
+    {
+        uint pointIndex = _InputIndices[index];
+        _OutputIndices.Append(pointIndex);
+    }
+}
+
+// ========================================
+// Ratio Decimation Kernel
+// Keeps approximately Ratio% of points evenly distributed
+// ========================================
+[numthreads(64, 1, 1)]
+void DecimateRatio(uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.x;
+
+    // Bounds check
+    if (index >= _InputCount)
+        return;
+
+    // Calculate target count
+    uint targetCount = max(1, (uint) (_InputCount * _Ratio));
+
+    if (targetCount >= _InputCount)
+    {
+        // Keep all points
+        _OutputIndices.Append(_InputIndices[index]);
+        return;
+    }
+
+    // Evenly distribute selections across input range
+    float step = (float) _InputCount / (float) targetCount;
+    float accumulator = index / step;
+    uint selectedIndex = (uint) accumulator;
+
+    // Only append if this thread corresponds to a selected point
+    if (selectedIndex < targetCount && (uint) (selectedIndex * step) == index)
+    {
+        _OutputIndices.Append(_InputIndices[index]);
+    }
+}
+
+// ========================================
+// Random Decimation Kernel
+// Randomly samples Ratio% of points
+// ========================================
+[numthreads(64, 1, 1)]
+void DecimateRandom(uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.x;
+
+    // Bounds check
+    if (index >= _InputCount)
+        return;
+
+    // Generate random value for this index
+    float randValue = Random(index, _RandomSeed);
+
+    // Keep point if random value is below ratio threshold
+    if (randValue < _Ratio)
+    {
+        uint pointIndex = _InputIndices[index];
+        _OutputIndices.Append(pointIndex);
+    }
+}
